@@ -14,16 +14,31 @@ class SeriousEats(AbstractScraper):
     def title(self):
         return self.soup.find("h1").get_text()
 
+    def is_article(self):
+        return self.soup.find("div", {"class": "article__container"}) is not None
+
     def total_time(self):
+        total_time = self.soup.find("div", {"class": "total-time"})
+        if total_time is None:
+            return 0
+
         return get_minutes(
-            self.soup.find("div", {"class": "total-time"}).find(
+            total_time.find(
                 "span", {"class": "meta-text__data"}
             )
         )
 
     def yields(self):
+        recipe_yields = self.soup.find("div", {"class": "recipe-yield"})
+
+        if recipe_yields is None:
+            recipe_yields = self.soup.find("div", {"class": "recipe-serving"})
+
+        if recipe_yields is None:
+            return None
+
         return get_yields(
-            self.soup.find("div", {"class": "recipe-yield"}).find(
+            recipe_yields.find(
                 "span", {"class": "meta-text__data"}
             )
         )

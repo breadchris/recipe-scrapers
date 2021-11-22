@@ -1,5 +1,7 @@
 from ._abstract import AbstractScraper
 from ._utils import get_minutes, get_yields, normalize_string
+from functools import cached_property
+import json
 
 
 class Epicurious(AbstractScraper):
@@ -7,32 +9,35 @@ class Epicurious(AbstractScraper):
     def host(cls):
         return "epicurious.com"
 
+    @cached_property
+    def recipe(self):
+        recipe_json = self.soup.find('script', {'type': 'application/ld+json'}).get_text()
+        return json.loads(recipe_json)
+
     def title(self):
-        return normalize_string(self.soup.find("h1", {"itemprop": "name"}).get_text())
+        return self.recipe['name']
 
     def total_time(self):
-        total_time = self.soup.find("dd", {"class": "total-time"})
-
-        return get_minutes(total_time)
+        minutes = self.recipe.get('totalTime')
+        if minutes is None:
+            return None
+        return get_minutes(minutes)
 
     def yields(self):
-        return get_yields(self.soup.find("dd", {"itemprop": "recipeYield"}))
+        yields = self.recipe.get('recipeYield')
+        if yields is None:
+            return None
+        return get_yields(yields)
 
     def image(self):
-        image = self.soup.find("img", {"class": "photo", "srcset": True})
-        return image["srcset"] if image else None
+        img = self.recipe['logo']['url']
+        return img
 
     def ingredients(self):
-        ingredients = self.soup.findAll("li", {"itemprop": "ingredients"})
-
-        return [normalize_string(ingredient.get_text()) for ingredient in ingredients]
+        return self.recipe['recipeIngredient']
 
     def instructions(self):
-        instructions = self.soup.findAll("li", {"class": "preparation-step"})
-
-        return "\n".join(
-            [normalize_string(instruction.get_text()) for instruction in instructions]
-        )
+        return [ins['text'] for ins in self.recipe['recipeInstructions']]
 
     def ratings(self):
         rating = self.soup.find("span", {"class": "rating"})

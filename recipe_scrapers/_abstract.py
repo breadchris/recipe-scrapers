@@ -17,6 +17,8 @@ HEADERS = {
 
 
 class AbstractScraper:
+    WITH_SCHEMA = False
+
     def __init__(
         self,
         url,
@@ -25,19 +27,23 @@ class AbstractScraper:
             Union[float, Tuple, None]
         ] = None,  # allows us to specify optional timeout for request
         wild_mode: Optional[bool] = False,
+        page_data: Optional[bytes] = None,
     ):
-        if settings.TEST_MODE:  # when testing, we load a file
-            page_data = url.read()
-            url = "https://test.example.com/"
-        else:
-            page_data = requests.get(
-                url, headers=HEADERS, proxies=proxies, timeout=timeout
-            ).content
+        if page_data is None:
+            if settings.TEST_MODE:  # when testing, we load a file
+                page_data = url.read()
+                url = "https://test.example.com/"
+            else:
+                page_data = requests.get(
+                    url, headers=HEADERS, proxies=proxies, timeout=timeout
+                ).content
 
         self.wild_mode = wild_mode
         self.soup = BeautifulSoup(page_data, "html.parser")
         self.url = url
-        self.schema = SchemaOrg(page_data)
+
+        if self.WITH_SCHEMA:
+            self.schema = SchemaOrg(page_data)
 
         # attach the plugins as instructed in settings.PLUGINS
         if not hasattr(self.__class__, "plugins_initialized"):
